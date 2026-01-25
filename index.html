@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfect Pitch Training</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .menu-buttons {
+            display: grid;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .menu-btn, .action-btn, .back-btn {
+            padding: 20px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .menu-btn {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .menu-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .action-btn {
+            background: #48bb78;
+            color: white;
+            font-size: 1.5em;
+            padding: 30px;
+            margin: 30px 0;
+        }
+
+        .action-btn:hover {
+            background: #38a169;
+            transform: scale(1.05);
+        }
+
+        .back-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 12px 24px;
+            font-size: 1em;
+            margin-top: 20px;
+        }
+
+        .back-btn:hover {
+            background: #cbd5e0;
+        }
+
+        .input-section {
+            margin: 30px 0;
+        }
+
+        .input-grid {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-grid.two {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .input-grid.three {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        input {
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.1em;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .submit-btn:hover {
+            background: #5568d3;
+        }
+
+        .result {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.correct {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .result.incorrect {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .answer-text {
+            margin-top: 10px;
+            font-size: 1em;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Home Screen -->
+        <div id="homeScreen" class="screen active">
+            <h1>🎵 Perfect Pitch Training</h1>
+            <p class="subtitle">Choose your training mode</p>
+            
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="goToMode('single')">Single Note</button>
+                <button class="menu-btn" onclick="goToMode('double')">2 Notes</button>
+                <button class="menu-btn" onclick="goToMode('triple')">3 Notes</button>
+                <button class="menu-btn" onclick="goToMode('chord')">Chord</button>
+            </div>
+        </div>
+
+        <!-- Training Screen -->
+        <div id="trainingScreen" class="screen">
+            <h1 id="modeTitle">Single Note</h1>
+            <p class="subtitle" id="modeSubtitle">Listen and identify the note</p>
+
+            <button class="action-btn" onclick="playCurrentSound()">🔊 Play Sound</button>
+
+            <div class="input-section">
+                <div id="inputContainer"></div>
+                <button class="submit-btn" onclick="checkAnswer()">Submit Answer</button>
+            </div>
+
+            <div id="result" class="result"></div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="correctCount">0</div>
+                    <div class="stat-label">Correct</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="totalCount">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="accuracy">0%</div>
+                    <div class="stat-label">Accuracy</div>
+                </div>
+            </div>
+
+            <button class="back-btn" onclick="goHome()">← Back to Menu</button>
+        </div>
+    </div>
+
+    <script>
+        let audioContext = null;
+        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const octaves = [3, 4, 5];
+        
+        const chords = {
+            'C Major': ['C4', 'E4', 'G4'],
+            'D Major': ['D4', 'F#4', 'A4'],
+            'E Major': ['E4', 'G#4', 'B4'],
+            'F Major': ['F4', 'A4', 'C5'],
+            'G Major': ['G4', 'B4', 'D5'],
+            'A Major': ['A4', 'C#5', 'E5'],
+            'C Minor': ['C4', 'D#4', 'G4'],
+            'D Minor': ['D4', 'F4', 'A4'],
+            'E Minor': ['E4', 'G4', 'B4'],
+            'A Minor': ['A4', 'C5', 'E5']
+        };
+
+        let currentMode = 'single';
+        let currentAnswer = [];
+        let correctCount = 0;
+        let totalCount = 0;
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function noteToFrequency(note) {
+            const noteMatch = note.match(/([A-G]#?)(\d)/);
+            if (!noteMatch) return 0;
+            
+            const noteName = noteMatch[1];
+            const octave = parseInt(noteMatch[2]);
+            const noteIndex = notes.indexOf(noteName);
+            const semitone = (octave - 4) * 12 + noteIndex;
+            return 440 * Math.pow(2, (semitone - 9) / 12);
+        }
+
+        function playNote(frequency, startTime = 0, duration = 1) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            const now = audioContext.currentTime;
+            gainNode.gain.setValueAtTime(0, now + startTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, now + startTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + startTime + duration);
+            
+            oscillator.start(now + startTime);
+            oscillator.stop(now + startTime + duration);
+        }
+
+        function generateQuestion() {
+            currentAnswer = [];
+            
+            if (currentMode === 'single') {
+                const note = notes[Math.floor(Math.random() * notes.length)];
+                const octave = octaves[Math.floor(Math.random() * octaves.length)];
+                currentAnswer = [note + octave];
+            } else if (currentMode === 'double') {
+                for (let i = 0; i < 2; i++) {
+                    const note = notes[Math.floor(Math.random() * notes.length)];
+                    const octave = octaves[Math.floor(Math.random() * octaves.length)];
+                    currentAnswer.push(note + octave);
+                }
+            } else if (currentMode === 'triple') {
+                for (let i = 0; i < 3; i++) {
+                    const note = notes[Math.floor(Math.random() * notes.length)];
+                    const octave = octaves[Math.floor(Math.random() * octaves.length)];
+                    currentAnswer.push(note + octave);
+                }
+            } else if (currentMode === 'chord') {
+                const chordNames = Object.keys(chords);
+                const randomChord = chordNames[Math.floor(Math.random() * chordNames.length)];
+                currentAnswer = [randomChord];
+            }
+        }
+
+        function playCurrentSound() {
+            initAudio();
+            
+            if (currentMode === 'chord') {
+                const chordName = currentAnswer[0];
+                const chordNotes = chords[chordName];
+                chordNotes.forEach(note => {
+                    playNote(noteToFrequency(note), 0, 2);
+                });
+            } else {
+                currentAnswer.forEach((note, index) => {
+                    playNote(noteToFrequency(note), index * 1.2, 1);
+                });
+            }
+        }
+
+        function setupInputs() {
+            const container = document.getElementById('inputContainer');
+            container.innerHTML = '';
+            
+            if (currentMode === 'chord') {
+                container.innerHTML = '<input type="text" id="input0" placeholder="e.g., C Major">';
+            } else {
+                const count = currentMode === 'single' ? 1 : currentMode === 'double' ? 2 : 3;
+                const gridClass = count === 1 ? '' : count === 2 ? 'two' : 'three';
+                container.innerHTML = `<div class="input-grid ${gridClass}">` +
+                    Array.from({length: count}, (_, i) => 
+                        `<input type="text" id="input${i}" placeholder="e.g., A#3">`
+                    ).join('') +
+                    '</div>';
+            }
+
+            // Enter key support
+            container.querySelectorAll('input').forEach(input => {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') checkAnswer();
+                });
+            });
+        }
+
+        function checkAnswer() {
+            const resultDiv = document.getElementById('result');
+            let userAnswer = [];
+            
+            if (currentMode === 'chord') {
+                userAnswer = [document.getElementById('input0').value.trim()];
+            } else {
+                const count = currentMode === 'single' ? 1 : currentMode === 'double' ? 2 : 3;
+                for (let i = 0; i < count; i++) {
+                    const val = document.getElementById(`input${i}`).value.trim().toUpperCase();
+                    if (val) userAnswer.push(val);
+                }
+            }
+
+            if (userAnswer.length === 0 || userAnswer.some(a => !a)) {
+                alert('Please enter all answers');
+                return;
+            }
+
+            totalCount++;
+            let isCorrect = false;
+
+            if (currentMode === 'chord') {
+                isCorrect = userAnswer[0].toLowerCase() === currentAnswer[0].toLowerCase();
+            } else {
+                isCorrect = JSON.stringify(userAnswer.sort()) === JSON.stringify(currentAnswer.sort());
+            }
+
+            if (isCorrect) {
+                correctCount++;
+                resultDiv.className = 'result correct show';
+                resultDiv.innerHTML = `✓ Correct!<div class="answer-text">Answer: ${currentAnswer.join(', ')}</div>`;
+            } else {
+                resultDiv.className = 'result incorrect show';
+                resultDiv.innerHTML = `✗ Incorrect<div class="answer-text">Correct answer: ${currentAnswer.join(', ')}</div>`;
+            }
+
+            updateStats();
+            
+            setTimeout(() => {
+                resultDiv.className = 'result';
+                generateQuestion();
+                setupInputs();
+            }, 3000);
+        }
+
+        function updateStats() {
+            document.getElementById('correctCount').textContent = correctCount;
+            document.getElementById('totalCount').textContent = totalCount;
+            const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+            document.getElementById('accuracy').textContent = accuracy + '%';
+        }
+
+        function goToMode(mode) {
+            currentMode = mode;
+            
+            const titles = {
+                'single': 'Single Note',
+                'double': '2 Notes',
+                'triple': '3 Notes',
+                'chord': 'Chord'
+            };
+            
+            const subtitles = {
+                'single': 'Listen and identify the note',
+                'double': 'Listen and identify both notes',
+                'triple': 'Listen and identify all three notes',
+                'chord': 'Listen and identify the chord'
+            };
+            
+            document.getElementById('modeTitle').textContent = titles[mode];
+            document.getElementById('modeSubtitle').textContent = subtitles[mode];
+            
+            document.getElementById('homeScreen').classList.remove('active');
+            document.getElementById('trainingScreen').classList.add('active');
+            
+            generateQuestion();
+            setupInputs();
+            document.getElementById('result').className = 'result';
+        }
+
+        function goHome() {
+            document.getElementById('trainingScreen').classList.remove('active');
+            document.getElementById('homeScreen').classList.add('active');
+            correctCount = 0;
+            totalCount = 0;
+            updateStats();
+        }
+    </script>
+</body>
+</html>
