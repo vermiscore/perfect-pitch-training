@@ -138,7 +138,7 @@
         }
 
         input[type="text"] {
-            text-transform: uppercase;
+            text-transform: lowercase;
         }
 
         input:focus, select:focus {
@@ -340,23 +340,23 @@
 
     <script>
         let audioContext = null;
-        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const notes = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
         
-        // デフォルトの設定: A0(21)からC8(108)
+        // Default settings: A0(21) to C8(108)
         let minMidiNote = 21; // A0
         let maxMidiNote = 108; // C8
         
         const chords = {
-            'C Major': ['C4', 'E4', 'G4'],
-            'D Major': ['D4', 'F#4', 'A4'],
-            'E Major': ['E4', 'G#4', 'B4'],
-            'F Major': ['F4', 'A4', 'C5'],
-            'G Major': ['G4', 'B4', 'D5'],
-            'A Major': ['A4', 'C#5', 'E5'],
-            'C Minor': ['C4', 'D#4', 'G4'],
-            'D Minor': ['D4', 'F4', 'A4'],
-            'E Minor': ['E4', 'G4', 'B4'],
-            'A Minor': ['A4', 'C5', 'E5']
+            'c major': ['c4', 'e4', 'g4'],
+            'd major': ['d4', 'f#4', 'a4'],
+            'e major': ['e4', 'g#4', 'b4'],
+            'f major': ['f4', 'a4', 'c5'],
+            'g major': ['g4', 'b4', 'd5'],
+            'a major': ['a4', 'c#5', 'e5'],
+            'c minor': ['c4', 'd#4', 'g4'],
+            'd minor': ['d4', 'f4', 'a4'],
+            'e minor': ['e4', 'g4', 'b4'],
+            'a minor': ['a4', 'c5', 'e5']
         };
 
         let currentMode = 'single';
@@ -373,21 +373,21 @@
             }
         }
 
-        // MIDIノート番号から周波数を計算（A4=440Hz基準）
+        // Convert MIDI note number to frequency (A4=440Hz reference)
         function midiToFrequency(midiNote) {
             return 440 * Math.pow(2, (midiNote - 69) / 12);
         }
 
-        // MIDIノート番号からノート名を取得
+        // Convert MIDI note number to note name
         function midiToNoteName(midiNote) {
             const octave = Math.floor(midiNote / 12) - 1;
             const noteIndex = midiNote % 12;
             return notes[noteIndex] + octave;
         }
 
-        // ノート名からMIDIノート番号を取得
+        // Convert note name to MIDI note number
         function noteNameToMidi(noteName) {
-            const match = noteName.match(/([A-G]#?)(\d)/);
+            const match = noteName.match(/([a-g]#?)(\d)/);
             if (!match) return null;
             const note = match[1];
             const octave = parseInt(match[2]);
@@ -396,13 +396,13 @@
             return (octave + 1) * 12 + noteIndex;
         }
 
-        // ランダムなMIDIノートを生成
+        // Generate random MIDI note
         function getRandomMidiNote() {
             return Math.floor(Math.random() * (maxMidiNote - minMidiNote + 1)) + minMidiNote;
         }
 
         function noteToFrequency(note) {
-            const noteMatch = note.match(/([A-G]#?)(\d)/);
+            const noteMatch = note.match(/([a-g]#?)(\d)/);
             if (!noteMatch) return 0;
             
             const noteName = noteMatch[1];
@@ -481,17 +481,21 @@
             container.innerHTML = '';
             
             if (currentMode === 'chord') {
-                container.innerHTML = '<div class="input-grid vertical"><input type="text" id="input0" placeholder="e.g., C Major"></div>';
+                container.innerHTML = '<div class="input-grid vertical"><input type="text" id="input0" placeholder="e.g., c major"></div>';
             } else {
                 const count = currentMode === 'single' ? 1 : currentMode === 'double' ? 2 : 3;
                 container.innerHTML = `<div class="input-grid vertical">` +
                     Array.from({length: count}, (_, i) => 
-                        `<input type="text" id="input${i}" placeholder="Note ${i + 1} (e.g., A#3)">`
+                        `<input type="text" id="input${i}" placeholder="note ${i + 1} (e.g., a#3)">`
                     ).join('') +
                     '</div>';
             }
 
+            // Add event listeners to ensure lowercase input
             container.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.toLowerCase();
+                });
                 input.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') checkAnswer();
                 });
@@ -503,11 +507,11 @@
             let userAnswer = [];
             
             if (currentMode === 'chord') {
-                userAnswer = [document.getElementById('input0').value.trim()];
+                userAnswer = [document.getElementById('input0').value.trim().toLowerCase()];
             } else {
                 const count = currentMode === 'single' ? 1 : currentMode === 'double' ? 2 : 3;
                 for (let i = 0; i < count; i++) {
-                    const val = document.getElementById(`input${i}`).value.trim().toUpperCase();
+                    const val = document.getElementById(`input${i}`).value.trim().toLowerCase();
                     if (val) userAnswer.push(val);
                 }
             }
@@ -521,7 +525,7 @@
             let isCorrect = false;
 
             if (currentMode === 'chord') {
-                isCorrect = userAnswer[0].toLowerCase() === currentAnswer[0].toLowerCase();
+                isCorrect = userAnswer[0] === currentAnswer[0];
             } else {
                 isCorrect = JSON.stringify(userAnswer.sort()) === JSON.stringify(currentAnswer.sort());
             }
@@ -612,7 +616,7 @@
             minSelect.innerHTML = '';
             maxSelect.innerHTML = '';
             
-            // A0(21)からC8(108)まで全ノートを生成
+            // Generate all notes from A0(21) to C8(108)
             for (let midi = 21; midi <= 108; midi++) {
                 const noteName = midiToNoteName(midi);
                 const freq = Math.round(midiToFrequency(midi) * 10) / 10;
@@ -670,7 +674,7 @@
             minMidiNote = newMin;
             maxMidiNote = newMax;
             
-            // 設定を保存（ローカルストレージ）
+            // Save settings to localStorage
             localStorage.setItem('minMidiNote', minMidiNote);
             localStorage.setItem('maxMidiNote', maxMidiNote);
             
@@ -678,7 +682,7 @@
             goHome();
         }
 
-        // 保存された設定を読み込む
+        // Load saved settings
         function loadSettings() {
             const savedMin = localStorage.getItem('minMidiNote');
             const savedMax = localStorage.getItem('maxMidiNote');
@@ -687,7 +691,7 @@
             if (savedMax !== null) maxMidiNote = parseInt(savedMax);
         }
 
-        // ページロード時の初期化
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
             document.body.addEventListener('click', initAudio, { once: true });
