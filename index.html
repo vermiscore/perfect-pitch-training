@@ -276,9 +276,20 @@
         <!-- Settings Screen -->
         <div id="settingsScreen" class="screen">
             <h1>⚙️ Settings</h1>
-            <p class="subtitle">Customize frequency range</p>
+            <p class="subtitle">Customize your training</p>
 
             <div class="settings-section">
+                <div class="setting-item">
+                    <label class="setting-label" for="soundType">Sound Type</label>
+                    <select id="soundType">
+                        <option value="synth">Synth (Default)</option>
+                        <option value="piano">Piano</option>
+                        <option value="electric-guitar">Electric Guitar</option>
+                        <option value="acoustic-guitar">Acoustic Guitar</option>
+                    </select>
+                    <div class="setting-info">Choose the instrument sound</div>
+                </div>
+
                 <div class="setting-item">
                     <label class="setting-label" for="minNote">Minimum Note</label>
                     <select id="minNote" onchange="updateFrequencyDisplay()">
@@ -342,9 +353,10 @@
         let audioContext = null;
         const notes = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
         
-        // Default settings: A0(21) to C8(108)
+        // Default settings
         let minMidiNote = 21; // A0
         let maxMidiNote = 108; // C8
+        let currentSoundType = 'synth'; // Default sound type
         
         const chords = {
             'c major': ['c4', 'e4', 'g4'],
@@ -412,7 +424,30 @@
             return midiToFrequency(midiNote);
         }
 
+        // Play note with different sound types
         function playNote(frequency, startTime = 0, duration = 1) {
+            const now = audioContext.currentTime;
+            const startAt = now + startTime;
+            
+            switch(currentSoundType) {
+                case 'piano':
+                    playPiano(frequency, startAt, duration);
+                    break;
+                case 'electric-guitar':
+                    playElectricGuitar(frequency, startAt, duration);
+                    break;
+                case 'acoustic-guitar':
+                    playAcousticGuitar(frequency, startAt, duration);
+                    break;
+                case 'synth':
+                default:
+                    playSynth(frequency, startAt, duration);
+                    break;
+            }
+        }
+
+        // Synth sound (original default)
+        function playSynth(frequency, startAt, duration) {
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
             
@@ -422,13 +457,126 @@
             oscillator.frequency.value = frequency;
             oscillator.type = 'sine';
             
-            const now = audioContext.currentTime;
-            gainNode.gain.setValueAtTime(0, now + startTime);
-            gainNode.gain.linearRampToValueAtTime(0.3, now + startTime + 0.01);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + startTime + duration);
+            gainNode.gain.setValueAtTime(0, startAt);
+            gainNode.gain.linearRampToValueAtTime(0.3, startAt + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, startAt + duration);
             
-            oscillator.start(now + startTime);
-            oscillator.stop(now + startTime + duration);
+            oscillator.start(startAt);
+            oscillator.stop(startAt + duration);
+        }
+
+        // Piano sound (complex harmonics with decay)
+        function playPiano(frequency, startAt, duration) {
+            const harmonics = [
+                { mult: 1, gain: 1.0 },
+                { mult: 2, gain: 0.5 },
+                { mult: 3, gain: 0.3 },
+                { mult: 4, gain: 0.2 },
+                { mult: 5, gain: 0.15 },
+                { mult: 6, gain: 0.1 }
+            ];
+            
+            harmonics.forEach(harmonic => {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.frequency.value = frequency * harmonic.mult;
+                osc.type = 'sine';
+                
+                const maxGain = 0.15 * harmonic.gain;
+                gain.gain.setValueAtTime(0, startAt);
+                gain.gain.linearRampToValueAtTime(maxGain, startAt + 0.005);
+                gain.gain.exponentialRampToValueAtTime(maxGain * 0.3, startAt + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+                
+                osc.start(startAt);
+                osc.stop(startAt + duration);
+            });
+        }
+
+        // Electric guitar sound (sawtooth with distortion effect)
+        function playElectricGuitar(frequency, startAt, duration) {
+            const osc = audioContext.createOscillator();
+            const preGain = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+            const postGain = audioContext.createGain();
+            
+            osc.connect(preGain);
+            preGain.connect(filter);
+            filter.connect(postGain);
+            postGain.connect(audioContext.destination);
+            
+            osc.frequency.value = frequency;
+            osc.type = 'sawtooth';
+            
+            // Add brightness with filter
+            filter.type = 'lowpass';
+            filter.frequency.value = frequency * 4;
+            filter.Q.value = 5;
+            
+            // Distortion effect through gain staging
+            preGain.gain.setValueAtTime(2.0, startAt);
+            
+            postGain.gain.setValueAtTime(0, startAt);
+            postGain.gain.linearRampToValueAtTime(0.2, startAt + 0.01);
+            postGain.gain.exponentialRampToValueAtTime(0.1, startAt + 0.1);
+            postGain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+            
+            osc.start(startAt);
+            osc.stop(startAt + duration);
+        }
+
+        // Acoustic guitar sound (triangle wave with pluck envelope)
+        function playAcousticGuitar(frequency, startAt, duration) {
+            // Main body resonance
+            const osc1 = audioContext.createOscillator();
+            const osc2 = audioContext.createOscillator();
+            const gain1 = audioContext.createGain();
+            const gain2 = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+            const masterGain = audioContext.createGain();
+            
+            osc1.connect(gain1);
+            osc2.connect(gain2);
+            gain1.connect(filter);
+            gain2.connect(filter);
+            filter.connect(masterGain);
+            masterGain.connect(audioContext.destination);
+            
+            osc1.frequency.value = frequency;
+            osc1.type = 'triangle';
+            
+            osc2.frequency.value = frequency * 2;
+            osc2.type = 'triangle';
+            
+            // Body resonance filter
+            filter.type = 'bandpass';
+            filter.frequency.value = frequency * 1.5;
+            filter.Q.value = 3;
+            
+            // Pluck attack with quick decay
+            const attackTime = 0.003;
+            const decayTime = 0.05;
+            
+            gain1.gain.setValueAtTime(0, startAt);
+            gain1.gain.linearRampToValueAtTime(0.3, startAt + attackTime);
+            gain1.gain.exponentialRampToValueAtTime(0.15, startAt + decayTime);
+            gain1.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+            
+            gain2.gain.setValueAtTime(0, startAt);
+            gain2.gain.linearRampToValueAtTime(0.15, startAt + attackTime);
+            gain2.gain.exponentialRampToValueAtTime(0.05, startAt + decayTime);
+            gain2.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+            
+            masterGain.gain.setValueAtTime(1, startAt);
+            
+            osc1.start(startAt);
+            osc1.stop(startAt + duration);
+            osc2.start(startAt);
+            osc2.stop(startAt + duration);
         }
 
         function generateQuestion() {
@@ -491,7 +639,6 @@
                     '</div>';
             }
 
-            // Add event listeners to ensure lowercase input
             container.querySelectorAll('input').forEach(input => {
                 input.addEventListener('input', (e) => {
                     e.target.value = e.target.value.toLowerCase();
@@ -607,6 +754,9 @@
             document.getElementById('settingsScreen').classList.add('active');
             populateNoteSelectors();
             updateFrequencyDisplay();
+            
+            // Set current sound type
+            document.getElementById('soundType').value = currentSoundType;
         }
 
         function populateNoteSelectors() {
@@ -616,7 +766,6 @@
             minSelect.innerHTML = '';
             maxSelect.innerHTML = '';
             
-            // Generate all notes from A0(21) to C8(108)
             for (let midi = 21; midi <= 108; midi++) {
                 const noteName = midiToNoteName(midi);
                 const freq = Math.round(midiToFrequency(midi) * 10) / 10;
@@ -662,6 +811,7 @@
         function saveSettings() {
             const minSelect = document.getElementById('minNote');
             const maxSelect = document.getElementById('maxNote');
+            const soundTypeSelect = document.getElementById('soundType');
             
             const newMin = parseInt(minSelect.value);
             const newMax = parseInt(maxSelect.value);
@@ -673,10 +823,12 @@
             
             minMidiNote = newMin;
             maxMidiNote = newMax;
+            currentSoundType = soundTypeSelect.value;
             
             // Save settings to localStorage
             localStorage.setItem('minMidiNote', minMidiNote);
             localStorage.setItem('maxMidiNote', maxMidiNote);
+            localStorage.setItem('soundType', currentSoundType);
             
             alert('Settings saved successfully!');
             goHome();
@@ -686,9 +838,11 @@
         function loadSettings() {
             const savedMin = localStorage.getItem('minMidiNote');
             const savedMax = localStorage.getItem('maxMidiNote');
+            const savedSound = localStorage.getItem('soundType');
             
             if (savedMin !== null) minMidiNote = parseInt(savedMin);
             if (savedMax !== null) maxMidiNote = parseInt(savedMax);
+            if (savedSound !== null) currentSoundType = savedSound;
         }
 
         // Initialize on page load
