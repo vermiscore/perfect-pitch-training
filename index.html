@@ -113,12 +113,8 @@
             margin-bottom: 15px;
         }
 
-        .input-grid.two {
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .input-grid.three {
-            grid-template-columns: 1fr 1fr 1fr;
+        .input-grid.vertical {
+            grid-template-columns: 1fr;
         }
 
         input {
@@ -255,7 +251,10 @@
     <script>
         let audioContext = null;
         const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        const octaves = [3, 4, 5];
+        
+        // A0(27.5Hz)からC8(4186Hz)までの範囲
+        const minMidiNote = 21; // A0
+        const maxMidiNote = 108; // C8
         
         const chords = {
             'C Major': ['C4', 'E4', 'G4'],
@@ -278,7 +277,28 @@
         function initAudio() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // iPhoneのmuteモード対策：AudioContextを再開
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
             }
+        }
+
+        // MIDIノート番号から周波数を計算（A4=440Hz基準）
+        function midiToFrequency(midiNote) {
+            return 440 * Math.pow(2, (midiNote - 69) / 12);
+        }
+
+        // MIDIノート番号からノート名を取得
+        function midiToNoteName(midiNote) {
+            const octave = Math.floor(midiNote / 12) - 1;
+            const noteIndex = midiNote % 12;
+            return notes[noteIndex] + octave;
+        }
+
+        // ランダムなMIDIノートを生成
+        function getRandomMidiNote() {
+            return Math.floor(Math.random() * (maxMidiNote - minMidiNote + 1)) + minMidiNote;
         }
 
         function noteToFrequency(note) {
@@ -288,8 +308,8 @@
             const noteName = noteMatch[1];
             const octave = parseInt(noteMatch[2]);
             const noteIndex = notes.indexOf(noteName);
-            const semitone = (octave - 4) * 12 + noteIndex;
-            return 440 * Math.pow(2, (semitone - 9) / 12);
+            const midiNote = (octave + 1) * 12 + noteIndex;
+            return midiToFrequency(midiNote);
         }
 
         function playNote(frequency, startTime = 0, duration = 1) {
@@ -315,20 +335,19 @@
             currentAnswer = [];
             
             if (currentMode === 'single') {
-                const note = notes[Math.floor(Math.random() * notes.length)];
-                const octave = octaves[Math.floor(Math.random() * octaves.length)];
-                currentAnswer = [note + octave];
+                const midiNote = getRandomMidiNote();
+                currentAnswer = [midiToNoteName(midiNote)];
             } else if (currentMode === 'double') {
+                // 2つのランダムな音を生成
                 for (let i = 0; i < 2; i++) {
-                    const note = notes[Math.floor(Math.random() * notes.length)];
-                    const octave = octaves[Math.floor(Math.random() * octaves.length)];
-                    currentAnswer.push(note + octave);
+                    const midiNote = getRandomMidiNote();
+                    currentAnswer.push(midiToNoteName(midiNote));
                 }
             } else if (currentMode === 'triple') {
+                // 3つのランダムな音を生成
                 for (let i = 0; i < 3; i++) {
-                    const note = notes[Math.floor(Math.random() * notes.length)];
-                    const octave = octaves[Math.floor(Math.random() * octaves.length)];
-                    currentAnswer.push(note + octave);
+                    const midiNote = getRandomMidiNote();
+                    currentAnswer.push(midiToNoteName(midiNote));
                 }
             } else if (currentMode === 'chord') {
                 const chordNames = Object.keys(chords);
@@ -340,15 +359,25 @@
         function playCurrentSound() {
             initAudio();
             
+            // AudioContextを確実に再開（iPhoneのmute対策）
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
             if (currentMode === 'chord') {
                 const chordName = currentAnswer[0];
                 const chordNotes = chords[chordName];
+                // コードは同時発音
                 chordNotes.forEach(note => {
                     playNote(noteToFrequency(note), 0, 2);
                 });
+            } else if (currentMode === 'single') {
+                // Single noteは1音のみ
+                playNote(noteToFrequency(currentAnswer[0]), 0, 1);
             } else {
-                currentAnswer.forEach((note, index) => {
-                    playNote(noteToFrequency(note), index * 1.2, 1);
+                // 2 notes, 3 notesは同時発音
+                currentAnswer.forEach(note => {
+                    playNote(noteToFrequency(note), 0, 1.5);
                 });
             }
         }
@@ -358,13 +387,13 @@
             container.innerHTML = '';
             
             if (currentMode === 'chord') {
-                container.innerHTML = '<input type="text" id="input0" placeholder="e.g., C Major">';
+                container.innerHTML = '<div class="input-grid vertical"><input type="text" id="input0" placeholder="e.g., C Major"></div>';
             } else {
                 const count = currentMode === 'single' ? 1 : currentMode === 'double' ? 2 : 3;
-                const gridClass = count === 1 ? '' : count === 2 ? 'two' : 'three';
-                container.innerHTML = `<div class="input-grid ${gridClass}">` +
+                // 縦並びに変更
+                container.innerHTML = `<div class="input-grid vertical">` +
                     Array.from({length: count}, (_, i) => 
-                        `<input type="text" id="input${i}" placeholder="e.g., A#3">`
+                        `<input type="text" id="input${i}" placeholder="Note ${i + 1} (e.g., A#3)">`
                     ).join('') +
                     '</div>';
             }
@@ -442,8 +471,8 @@
             
             const subtitles = {
                 'single': 'Listen and identify the note',
-                'double': 'Listen and identify both notes',
-                'triple': 'Listen and identify all three notes',
+                'double': 'Listen and identify both notes (played simultaneously)',
+                'triple': 'Listen and identify all three notes (played simultaneously)',
                 'chord': 'Listen and identify the chord'
             };
             
@@ -465,6 +494,12 @@
             totalCount = 0;
             updateStats();
         }
+
+        // ページロード時にAudioContextを初期化（ユーザー操作後）
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.addEventListener('click', initAudio, { once: true });
+            document.body.addEventListener('touchstart', initAudio, { once: true });
+        });
     </script>
 </body>
 </html>
