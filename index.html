@@ -55,7 +55,7 @@
             margin-top: 30px;
         }
 
-        .menu-btn, .action-btn, .back-btn {
+        .menu-btn, .action-btn, .back-btn, .settings-btn {
             padding: 20px;
             border: none;
             border-radius: 15px;
@@ -76,6 +76,18 @@
             background: #5568d3;
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .settings-btn {
+            background: #ed8936;
+            color: white;
+            box-shadow: 0 4px 15px rgba(237, 137, 54, 0.4);
+        }
+
+        .settings-btn:hover {
+            background: #dd6b20;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(237, 137, 54, 0.6);
         }
 
         .action-btn {
@@ -117,21 +129,24 @@
             grid-template-columns: 1fr;
         }
 
-        input {
+        input, select {
             padding: 15px;
             border: 2px solid #ddd;
             border-radius: 10px;
             font-size: 1.1em;
             text-align: center;
+        }
+
+        input[type="text"] {
             text-transform: uppercase;
         }
 
-        input:focus {
+        input:focus, select:focus {
             outline: none;
             border-color: #667eea;
         }
 
-        .submit-btn {
+        .submit-btn, .save-btn {
             width: 100%;
             padding: 15px;
             background: #667eea;
@@ -143,7 +158,7 @@
             cursor: pointer;
         }
 
-        .submit-btn:hover {
+        .submit-btn:hover, .save-btn:hover {
             background: #5568d3;
         }
 
@@ -198,6 +213,48 @@
             color: #666;
             margin-top: 5px;
         }
+
+        .settings-section {
+            margin: 20px 0;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+        }
+
+        .setting-label {
+            display: block;
+            font-weight: bold;
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        .setting-info {
+            font-size: 0.9em;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        .frequency-display {
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 8px;
+            color: #4a5568;
+            font-size: 0.95em;
+        }
+
+        .current-range {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #e6fffa;
+            border-radius: 8px;
+            color: #234e52;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -212,13 +269,46 @@
                 <button class="menu-btn" onclick="goToMode('double')">2 Notes</button>
                 <button class="menu-btn" onclick="goToMode('triple')">3 Notes</button>
                 <button class="menu-btn" onclick="goToMode('chord')">Chord</button>
+                <button class="settings-btn" onclick="goToSettings()">⚙️ Settings</button>
             </div>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settingsScreen" class="screen">
+            <h1>⚙️ Settings</h1>
+            <p class="subtitle">Customize frequency range</p>
+
+            <div class="settings-section">
+                <div class="setting-item">
+                    <label class="setting-label" for="minNote">Minimum Note</label>
+                    <select id="minNote" onchange="updateFrequencyDisplay()">
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                    <div class="setting-info">Lowest note that can appear</div>
+                </div>
+
+                <div class="setting-item">
+                    <label class="setting-label" for="maxNote">Maximum Note</label>
+                    <select id="maxNote" onchange="updateFrequencyDisplay()">
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                    <div class="setting-info">Highest note that can appear</div>
+                </div>
+
+                <div class="frequency-display" id="frequencyDisplay">
+                    <!-- Frequency info will be shown here -->
+                </div>
+            </div>
+
+            <button class="save-btn" onclick="saveSettings()">Save Settings</button>
+            <button class="back-btn" onclick="goHome()">← Back to Menu</button>
         </div>
 
         <!-- Training Screen -->
         <div id="trainingScreen" class="screen">
             <h1 id="modeTitle">Single Note</h1>
             <p class="subtitle" id="modeSubtitle">Listen and identify the note</p>
+            <div class="current-range" id="currentRange"></div>
 
             <button class="action-btn" onclick="playCurrentSound()">🔊 Play Sound</button>
 
@@ -252,9 +342,9 @@
         let audioContext = null;
         const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         
-        // A0(27.5Hz)からC8(4186Hz)までの範囲
-        const minMidiNote = 21; // A0
-        const maxMidiNote = 108; // C8
+        // デフォルトの設定: A0(21)からC8(108)
+        let minMidiNote = 21; // A0
+        let maxMidiNote = 108; // C8
         
         const chords = {
             'C Major': ['C4', 'E4', 'G4'],
@@ -277,7 +367,6 @@
         function initAudio() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                // iPhoneのmuteモード対策：AudioContextを再開
                 if (audioContext.state === 'suspended') {
                     audioContext.resume();
                 }
@@ -294,6 +383,17 @@
             const octave = Math.floor(midiNote / 12) - 1;
             const noteIndex = midiNote % 12;
             return notes[noteIndex] + octave;
+        }
+
+        // ノート名からMIDIノート番号を取得
+        function noteNameToMidi(noteName) {
+            const match = noteName.match(/([A-G]#?)(\d)/);
+            if (!match) return null;
+            const note = match[1];
+            const octave = parseInt(match[2]);
+            const noteIndex = notes.indexOf(note);
+            if (noteIndex === -1) return null;
+            return (octave + 1) * 12 + noteIndex;
         }
 
         // ランダムなMIDIノートを生成
@@ -338,13 +438,11 @@
                 const midiNote = getRandomMidiNote();
                 currentAnswer = [midiToNoteName(midiNote)];
             } else if (currentMode === 'double') {
-                // 2つのランダムな音を生成
                 for (let i = 0; i < 2; i++) {
                     const midiNote = getRandomMidiNote();
                     currentAnswer.push(midiToNoteName(midiNote));
                 }
             } else if (currentMode === 'triple') {
-                // 3つのランダムな音を生成
                 for (let i = 0; i < 3; i++) {
                     const midiNote = getRandomMidiNote();
                     currentAnswer.push(midiToNoteName(midiNote));
@@ -359,7 +457,6 @@
         function playCurrentSound() {
             initAudio();
             
-            // AudioContextを確実に再開（iPhoneのmute対策）
             if (audioContext.state === 'suspended') {
                 audioContext.resume();
             }
@@ -367,15 +464,12 @@
             if (currentMode === 'chord') {
                 const chordName = currentAnswer[0];
                 const chordNotes = chords[chordName];
-                // コードは同時発音
                 chordNotes.forEach(note => {
                     playNote(noteToFrequency(note), 0, 2);
                 });
             } else if (currentMode === 'single') {
-                // Single noteは1音のみ
                 playNote(noteToFrequency(currentAnswer[0]), 0, 1);
             } else {
-                // 2 notes, 3 notesは同時発音
                 currentAnswer.forEach(note => {
                     playNote(noteToFrequency(note), 0, 1.5);
                 });
@@ -390,7 +484,6 @@
                 container.innerHTML = '<div class="input-grid vertical"><input type="text" id="input0" placeholder="e.g., C Major"></div>';
             } else {
                 const count = currentMode === 'single' ? 1 : currentMode === 'double' ? 2 : 3;
-                // 縦並びに変更
                 container.innerHTML = `<div class="input-grid vertical">` +
                     Array.from({length: count}, (_, i) => 
                         `<input type="text" id="input${i}" placeholder="Note ${i + 1} (e.g., A#3)">`
@@ -398,7 +491,6 @@
                     '</div>';
             }
 
-            // Enter key support
             container.querySelectorAll('input').forEach(input => {
                 input.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') checkAnswer();
@@ -459,6 +551,15 @@
             document.getElementById('accuracy').textContent = accuracy + '%';
         }
 
+        function updateCurrentRange() {
+            const rangeDisplay = document.getElementById('currentRange');
+            const minNote = midiToNoteName(minMidiNote);
+            const maxNote = midiToNoteName(maxMidiNote);
+            const minFreq = Math.round(midiToFrequency(minMidiNote) * 10) / 10;
+            const maxFreq = Math.round(midiToFrequency(maxMidiNote) * 10) / 10;
+            rangeDisplay.textContent = `Range: ${minNote} (${minFreq}Hz) - ${maxNote} (${maxFreq}Hz)`;
+        }
+
         function goToMode(mode) {
             currentMode = mode;
             
@@ -482,6 +583,7 @@
             document.getElementById('homeScreen').classList.remove('active');
             document.getElementById('trainingScreen').classList.add('active');
             
+            updateCurrentRange();
             generateQuestion();
             setupInputs();
             document.getElementById('result').className = 'result';
@@ -489,14 +591,105 @@
 
         function goHome() {
             document.getElementById('trainingScreen').classList.remove('active');
+            document.getElementById('settingsScreen').classList.remove('active');
             document.getElementById('homeScreen').classList.add('active');
             correctCount = 0;
             totalCount = 0;
             updateStats();
         }
 
-        // ページロード時にAudioContextを初期化（ユーザー操作後）
+        function goToSettings() {
+            document.getElementById('homeScreen').classList.remove('active');
+            document.getElementById('settingsScreen').classList.add('active');
+            populateNoteSelectors();
+            updateFrequencyDisplay();
+        }
+
+        function populateNoteSelectors() {
+            const minSelect = document.getElementById('minNote');
+            const maxSelect = document.getElementById('maxNote');
+            
+            minSelect.innerHTML = '';
+            maxSelect.innerHTML = '';
+            
+            // A0(21)からC8(108)まで全ノートを生成
+            for (let midi = 21; midi <= 108; midi++) {
+                const noteName = midiToNoteName(midi);
+                const freq = Math.round(midiToFrequency(midi) * 10) / 10;
+                
+                const minOption = document.createElement('option');
+                minOption.value = midi;
+                minOption.textContent = `${noteName} (${freq}Hz)`;
+                if (midi === minMidiNote) minOption.selected = true;
+                minSelect.appendChild(minOption);
+                
+                const maxOption = document.createElement('option');
+                maxOption.value = midi;
+                maxOption.textContent = `${noteName} (${freq}Hz)`;
+                if (midi === maxMidiNote) maxOption.selected = true;
+                maxSelect.appendChild(maxOption);
+            }
+        }
+
+        function updateFrequencyDisplay() {
+            const minSelect = document.getElementById('minNote');
+            const maxSelect = document.getElementById('maxNote');
+            const display = document.getElementById('frequencyDisplay');
+            
+            const minMidi = parseInt(minSelect.value);
+            const maxMidi = parseInt(maxSelect.value);
+            
+            const minNote = midiToNoteName(minMidi);
+            const maxNote = midiToNoteName(maxMidi);
+            const minFreq = Math.round(midiToFrequency(minMidi) * 10) / 10;
+            const maxFreq = Math.round(midiToFrequency(maxMidi) * 10) / 10;
+            
+            if (minMidi > maxMidi) {
+                display.innerHTML = '<strong style="color: #e53e3e;">⚠️ Minimum note must be lower than maximum note</strong>';
+            } else {
+                display.innerHTML = `
+                    <strong>Current Range:</strong><br>
+                    ${minNote} (${minFreq}Hz) to ${maxNote} (${maxFreq}Hz)<br>
+                    <span style="color: #718096;">Total notes: ${maxMidi - minMidi + 1}</span>
+                `;
+            }
+        }
+
+        function saveSettings() {
+            const minSelect = document.getElementById('minNote');
+            const maxSelect = document.getElementById('maxNote');
+            
+            const newMin = parseInt(minSelect.value);
+            const newMax = parseInt(maxSelect.value);
+            
+            if (newMin > newMax) {
+                alert('Minimum note must be lower than or equal to maximum note');
+                return;
+            }
+            
+            minMidiNote = newMin;
+            maxMidiNote = newMax;
+            
+            // 設定を保存（ローカルストレージ）
+            localStorage.setItem('minMidiNote', minMidiNote);
+            localStorage.setItem('maxMidiNote', maxMidiNote);
+            
+            alert('Settings saved successfully!');
+            goHome();
+        }
+
+        // 保存された設定を読み込む
+        function loadSettings() {
+            const savedMin = localStorage.getItem('minMidiNote');
+            const savedMax = localStorage.getItem('maxMidiNote');
+            
+            if (savedMin !== null) minMidiNote = parseInt(savedMin);
+            if (savedMax !== null) maxMidiNote = parseInt(savedMax);
+        }
+
+        // ページロード時の初期化
         document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
             document.body.addEventListener('click', initAudio, { once: true });
             document.body.addEventListener('touchstart', initAudio, { once: true });
         });
